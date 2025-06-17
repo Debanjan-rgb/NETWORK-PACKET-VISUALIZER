@@ -1,0 +1,101 @@
+from scapy.all import sniff
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+import pandas as pd
+import matplotlib.pyplot as plt
+from collections import Counter
+
+# Store packets in a list
+packet_data = []
+
+# Function to process each captured packet
+def process_packet(packet):
+    if IP in packet:
+        proto = "OTHER"
+        if TCP in packet:
+            proto = "TCP"
+        elif UDP in packet:
+            proto = "UDP"
+        elif ICMP in packet:
+            proto = "ICMP"
+
+        # Append relevant details to packet_data list
+        packet_data.append({
+            'src': packet[IP].src,
+            'dst': packet[IP].dst,
+            'proto': proto,
+            'length': len(packet)
+        })
+
+# Start capturing packets
+print("[*] Capturing packets for 20 seconds... (Ctrl+C to stop early)")
+try:
+    sniff(prn=process_packet, timeout=20)
+except KeyboardInterrupt:
+    pass
+
+print(f"[*] {len(packet_data)} packets captured.")
+
+# Convert to DataFrame
+df = pd.DataFrame(packet_data)
+
+# ------------------ Visualization ------------------
+
+if df.empty:
+    print("No packets captured. Try running as administrator/root or check network traffic.")
+    exit()
+
+# 1. Protocol Distribution
+proto_counts = df['proto'].value_counts()
+proto_counts.plot(kind='bar', color='skyblue', title='Protocol Distribution')
+plt.xlabel("Protocol")
+plt.ylabel("Packet Count")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 2. Top 5 Source IPs
+top_src = df['src'].value_counts().head(5)
+top_src.plot(kind='barh', color='orange', title='Top 5 Source IPs')
+plt.xlabel("Count")
+plt.ylabel("Source IP")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 3. Packet Size Distribution
+plt.hist(df['length'], bins=30, color='green', edgecolor='black')
+plt.title("Packet Size Distribution")
+plt.xlabel("Packet Length (bytes)")
+plt.ylabel("Frequency")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 4. Optional: Capture again briefly to get port info (TCP/UDP only)
+ports = []
+
+def collect_ports(packet):
+    if TCP in packet or UDP in packet:
+        try:
+            ports.append(packet.dport)
+        except:
+            pass
+
+# Capture a small number of packets to extract destination ports
+print("[*] Capturing 100 packets to analyze destination ports...")
+try:
+    sniff(count=100, prn=collect_ports)
+except KeyboardInterrupt:
+    pass
+
+if ports:
+    port_counts = Counter(ports).most_common(5)
+    port_df = pd.DataFrame(port_counts, columns=["Port", "Count"])
+    port_df.plot(x="Port", y="Count", kind="bar", legend=False, color="purple", title="Top Destination Ports")
+    plt.xlabel("Port")
+    plt.ylabel("Frequency")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("[!] No ports captured. Try again with more traffic.")
