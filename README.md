@@ -34,10 +34,4 @@ A Python-based tool to capture live network packets and visualize:
   
 
 
-## 📦 Installation
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/yourusername/network-packet-visualizer.git
-cd network-packet-visualizer
